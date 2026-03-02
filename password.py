@@ -1,0 +1,103 @@
+# forget_password.py
+import tkinter as tk
+from tkinter import messagebox
+import sqlite3
+from apekshya import BG, FRAME, BROWN, TEXT, SUBTEXT, WHITE, INPUT_BG
+from apekshya import FONT_TITLE, FONT_BODY, FONT_BTN, FONT_INPUT
+
+class ForgetPasswordPage:
+    def __init__(self, root, db_manager, on_reset_success, on_back_to_login):
+        self.root = root
+        self.db = db_manager
+        self.on_reset_success = on_reset_success
+        self.on_back_to_login = on_back_to_login
+    
+    def show(self):
+        """Show forget password page"""
+        self.clear_window()
+        self.root.configure(bg=BG)
+        self.logo_header()
+
+        outer = tk.Frame(self.root, bg=BG)
+        outer.pack(expand=True)
+
+        card = tk.Frame(outer, bg=FRAME, padx=40, pady=30, relief="solid", bd=1)
+        card.pack()
+        tk.Label(card, text="Forget Password?", font=FONT_TITLE, bg=FRAME, fg=TEXT).pack(pady=(0,16))
+
+        tk.Label(card, text="Username:", font=FONT_BODY, bg=FRAME, fg=TEXT, anchor="w").pack(fill="x", pady=(6,2))
+        self.forget_username = tk.Entry(card, font=FONT_INPUT, bg=INPUT_BG, relief="solid", bd=1, width=34)
+        self.forget_username.pack(ipady=5)
+
+        tk.Label(card, text="Enter your email:", font=FONT_BODY, bg=FRAME, fg=TEXT, anchor="w").pack(fill="x", pady=(6,2))
+        self.forget_email = tk.Entry(card, font=FONT_INPUT, bg=INPUT_BG, relief="solid", bd=1, width=34)
+        self.forget_email.pack(ipady=5)
+
+        tk.Label(card, text="Enter your new password:", font=FONT_BODY, bg=FRAME, fg=TEXT, anchor="w").pack(fill="x", pady=(6,2))
+        self.forget_new_password = tk.Entry(card, font=FONT_INPUT, bg=INPUT_BG, relief="solid", bd=1, width=34, show="•")
+        self.forget_new_password.pack(ipady=5)
+
+        tk.Label(card, text="Confirm your password:", font=FONT_BODY, bg=FRAME, fg=TEXT, anchor="w").pack(fill="x", pady=(6,2))
+        self.forget_confirm_password = tk.Entry(card, font=FONT_INPUT, bg=INPUT_BG, relief="solid", bd=1, width=34, show="•")
+        self.forget_confirm_password.pack(ipady=5)
+
+        button_frame = tk.Frame(card, bg=FRAME)
+        button_frame.pack(pady=(16,0))
+        
+        tk.Button(button_frame, text="Back to Login", font=FONT_BODY, bg=FRAME, fg=BROWN,
+                 cursor="hand2", relief="flat", command=self.on_back_to_login).pack(side="left", padx=5)
+        
+        self.brown_btn(button_frame, "Reset Password", self.reset_password, width=12).pack(side="left", padx=5)
+
+    def clear_window(self):
+        for widget in self.root.winfo_children():
+            widget.destroy()
+
+    def logo_header(self):
+        h = tk.Frame(self.root, bg=BG, pady=10)
+        h.pack(fill="x")
+        logo = tk.Frame(h, bg=FRAME, width=80, height=60, relief="solid", bd=1)
+        logo.pack(side="left", padx=16)
+        logo.pack_propagate(False)
+        tk.Label(logo, text="KARA\n📚", font=("Segoe UI", 9, "bold"), bg=FRAME, fg=BROWN).pack(expand=True)
+        tk.Label(h, text="WELCOME TO\nKARA BOOK-ALCHEMY",
+                 font=FONT_TITLE, bg=BG, fg=TEXT, justify="left").pack(side="left", padx=10)
+
+    def brown_btn(self, parent, text, cmd, width=12):
+        return tk.Button(parent, text=text, font=FONT_BTN, bg=BROWN, fg=WHITE,
+                        relief="flat", width=width, pady=6, cursor="hand2",
+                        activebackground="#3D2B1F", activeforeground=WHITE, command=cmd)
+
+    def reset_password(self):
+        username = self.forget_username.get().strip()
+        email = self.forget_email.get().strip()
+        new_password = self.forget_new_password.get()
+        confirm_password = self.forget_confirm_password.get()
+        
+        if not username or not email or not new_password or not confirm_password:
+            messagebox.showerror("Error", "Please fill all fields!")
+            return
+        
+        if new_password != confirm_password:
+            messagebox.showerror("Error", "Passwords do not match!")
+            return
+        
+        if len(new_password) < 4:
+            messagebox.showerror("Error", "Password too short!")
+            return
+        
+        try:
+            cursor = self.db.get_cursor()
+            conn = self.db.get_connection()
+            cursor.execute("SELECT * FROM users WHERE username=? AND email=?", (username, email))
+            user = cursor.fetchone()
+            
+            if user:
+                cursor.execute("UPDATE users SET password=? WHERE username=?", (new_password, username))
+                conn.commit()
+                messagebox.showinfo("Success", "Password reset successfully!")
+                self.on_reset_success()
+            else:
+                messagebox.showerror("Error", "Invalid username or email combination!")
+        except sqlite3.Error as e:
+            messagebox.showerror("Error", f"Password reset failed: {e}")
